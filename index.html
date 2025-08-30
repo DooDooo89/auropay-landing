@@ -92,7 +92,7 @@
     <!-- Contract Balance Section -->
     <div class="section">
       <h3>�� Contract Balance</h3>
-      <p>Contract Balance: <span id="contractBalance">0</span> POL</p>
+      <p>Contract Balance: <span id="contractBalance">0</span> POL (MATIC)</p>
       <button id="refreshBalance">Refresh Balance</button>
     </div>
 
@@ -360,15 +360,15 @@
 
       try {
         const balance = await provider.getBalance(contractAddress);
-        const balanceInEth = ethers.utils.formatEther(balance);
-        document.getElementById("contractBalance").textContent = balanceInEth;
+        const balanceInPol = ethers.utils.formatEther(balance);
+        document.getElementById("contractBalance").textContent = balanceInPol;
       } catch (error) {
         console.error('Error fetching balance:', error);
         showStatus('contractBalance', 'Error loading balance');
       }
     }
 
-    // Send Payment
+    // ✅ FIXED: Send Payment - Now calls contract.pay() function
     document.getElementById("payButton").onclick = async () => {
       if (!signer || !contract) {
         showStatus('paymentStatus', 'Please connect wallet first', 'error');
@@ -387,11 +387,8 @@
         // Convert amount to Wei
         const amountInWei = ethers.utils.parseEther(amount);
         
-        // Send transaction
-        const tx = await signer.sendTransaction({
-          to: contractAddress,
-          value: amountInWei
-        });
+        // ✅ CRITICAL FIX: Call contract's pay() function instead of raw transfer
+        const tx = await contract.pay({ value: amountInWei });
 
         showStatus('paymentStatus', `Transaction sent! Hash: ${tx.hash}`, 'info');
         showTransactionStatus('Waiting for transaction confirmation...', 'info');
