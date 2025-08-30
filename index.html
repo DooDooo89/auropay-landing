@@ -24,10 +24,10 @@
   <button id="withdrawAll">Withdraw All (Owner)</button>
 
   <script>
-    // ✅ Correct contract address with checksum
+    // ✅ Correct contract address (checksummed)
     const contractAddress = "0x4d8B6E01750cA97Ed8316290D586f11E632F9146";
 
-    // ✅ Contract ABI
+    // ✅ ABI (copied from PaymentProcessor)
     const contractABI = [
       {
         "inputs": [],
@@ -89,19 +89,42 @@
     // Refresh balance
     document.getElementById("refresh").onclick = async () => {
       if (!contract) return alert("Connect wallet first");
-      try {
-        const balance = await contract.getBalance();
-        document.getElementById("balance").innerText = ethers.utils.formatEther(balance);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to fetch balance");
-      }
+      const balance = await contract.getBalance();
+      document.getElementById("balance").innerText = ethers.utils.formatEther(balance);
     };
 
     // Pay
     document.getElementById("pay").onclick = async () => {
       if (!contract) return alert("Connect wallet first");
-      const amount = document.getElementById("payAmount").
+      const amount = document.getElementById("payAmount").value.trim();
+      if (!amount) return alert("Enter amount");
+      try {
+        // ✅ Directly call contract function
+        const tx = await contract.pay({ value: ethers.utils.parseEther(amount) });
+        await tx.wait();
+        alert("✅ Payment confirmed!");
+      } catch (err) {
+        console.error(err);
+        alert("Payment failed: " + (err.message || err));
+      }
+    };
+
+    // Withdraw All
+    document.getElementById("withdrawAll").onclick = async () => {
+      if (!contract) return alert("Connect wallet first");
+      try {
+        const tx = await contract.withdrawAll();
+        await tx.wait();
+        alert("✅ Withdraw successful!");
+      } catch (err) {
+        console.error(err);
+        alert("Withdraw failed: " + (err.message || err));
+      }
+    };
+  </script>
+</body>
+</html>
+
 
 
 
