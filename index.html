@@ -2,34 +2,126 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Payment Processor (Polygon Amoy Testnet)</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js" type="application/javascript"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+    input[type="text"] {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin: 5px;
+      width: 200px;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+  </style>
 </head>
 <body>
-  <h2>Payment Processor (Polygon Amoy Testnet)</h2>
+  <div class="container">
+    <h2>Payment Processor (Polygon Amoy Testnet)</h2>
 
-  <!-- Connect Wallet -->
-  <button id="connectButton">Connect Wallet</button>
-  <p id="walletAddress">Not connected</p>
+    <!-- Connect Wallet Section -->
+    <div class="section">
+      <h3>�� Connect Wallet</h3>
+      <button id="connectButton">Connect MetaMask</button>
+      <p id="walletAddress" class="status info">Not connected</p>
+      <p id="networkInfo" class="status info">Please connect to Polygon Amoy Testnet</p>
+    </div>
 
-  <!-- Contract Balance -->
-  <p>Contract Balance: <span id="contractBalance">0</span> POL</p>
-  <button id="refreshBalance">Refresh Balance</button>
+    <!-- Contract Balance Section -->
+    <div class="section">
+      <h3>�� Contract Balance</h3>
+      <p>Contract Balance: <span id="contractBalance">0</span> POL</p>
+      <button id="refreshBalance">Refresh Balance</button>
+    </div>
 
-  <!-- Send Payment -->
-  <h3>Send Payment</h3>
-  <input type="text" id="payAmount" placeholder="Amount in POL">
-  <button id="payButton">Pay</button>
+    <!-- Send Payment Section -->
+    <div class="section">
+      <h3>�� Send Payment</h3>
+      <input type="text" id="payAmount" placeholder="Amount in POL (e.g., 0.1)">
+      <button id="payButton">Send Payment</button>
+      <p id="paymentStatus"></p>
+    </div>
 
-  <!-- Withdraw -->
-  <h3>Withdraw</h3>
-  <button id="withdrawAll">Withdraw All (Owner)</button>
+    <!-- Withdraw Section -->
+    <div class="section">
+      <h3>�� Withdraw Funds</h3>
+      <button id="withdrawAll">Withdraw All (Owner Only)</button>
+      <p id="withdrawStatus"></p>
+    </div>
+
+    <!-- Transaction Status -->
+    <div id="transactionStatus"></div>
+  </div>
 
   <script>
-    // ✅ Your deployed contract address (replace if redeployed)
+    // Contract configuration
     const contractAddress = "0x4d8b6e01750ca97ed8316290d586f1ee632f9146";
+    const polygonAmoyChainId = "0x13881"; // 80001 in hex
+    const polygonAmoyRPC = "https://rpc-amoy.polygon.technology/";
 
-    // ✅ Full ABI from PaymentProcessor.sol
+    // Complete ABI for PaymentProcessor contract
     const contractABI = [
       {
         "inputs": [],
@@ -39,8 +131,37 @@
       {
         "anonymous": false,
         "inputs": [
-          { "indexed": true, "internalType": "address", "name": "from", "type": "address" },
-          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "previousOwner",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "sender",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
         ],
         "name": "PaymentReceived",
         "type": "event"
@@ -48,24 +169,59 @@
       {
         "anonymous": false,
         "inputs": [
-          { "indexed": true, "internalType": "address", "name": "to", "type": "address" },
-          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
         ],
-        "name": "WithdrawAll",
+        "name": "Withdrawal",
         "type": "event"
       },
       {
         "inputs": [],
-        "name": "owner",
-        "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+        "name": "getBalance",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
         "stateMutability": "view",
         "type": "function"
       },
       {
         "inputs": [],
-        "name": "withdrawAll",
-        "outputs": [],
-        "stateMutability": "nonpayable",
+        "name": "getContractBalance",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
         "type": "function"
       },
       {
@@ -76,74 +232,261 @@
         "type": "function"
       },
       {
+        "inputs": [],
+        "name": "withdrawAll",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
         "stateMutability": "payable",
         "type": "receive"
       }
     ];
 
+    // Global variables
     let provider;
     let signer;
     let contract;
+    let userAddress;
 
-    // ✅ Connect Wallet
-    document.getElementById("connectButton").onclick = async () => {
+    // Utility functions
+    function showStatus(elementId, message, type = 'info') {
+      const element = document.getElementById(elementId);
+      element.textContent = message;
+      element.className = `status ${type}`;
+    }
+
+    function showTransactionStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('transactionStatus');
+      statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+      setTimeout(() => {
+        statusDiv.innerHTML = '';
+      }, 5000);
+    }
+
+    // Check if MetaMask is installed
+    function checkMetaMask() {
       if (typeof window.ethereum === "undefined") {
-        alert("MetaMask not found. Please install it.");
+        showStatus('walletAddress', 'MetaMask not found. Please install MetaMask extension.', 'error');
+        return false;
+      }
+      return true;
+    }
+
+    // Switch to Polygon Amoy testnet
+    async function switchToPolygonAmoy() {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: polygonAmoyChainId }],
+        });
+        return true;
+      } catch (switchError) {
+        // This error code indicates that the chain has not been added to MetaMask
+        if (switchError.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: polygonAmoyChainId,
+                chainName: 'Polygon Amoy Testnet',
+                nativeCurrency: {
+                  name: 'MATIC',
+                  symbol: 'MATIC',
+                  decimals: 18
+                },
+                rpcUrls: [polygonAmoyRPC],
+                blockExplorerUrls: ['https://www.oklink.com/amoy']
+              }],
+            });
+            return true;
+          } catch (addError) {
+            showStatus('networkInfo', 'Failed to add Polygon Amoy network to MetaMask', 'error');
+            return false;
+          }
+        }
+        showStatus('networkInfo', 'Failed to switch to Polygon Amoy network', 'error');
+        return false;
+      }
+    }
+
+    // Connect Wallet
+    document.getElementById("connectButton").onclick = async () => {
+      if (!checkMetaMask()) return;
+
+      try {
+        // Request account access
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+
+        // Create provider and signer
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+
+        // Switch to Polygon Amoy
+        const networkSwitched = await switchToPolygonAmoy();
+        if (!networkSwitched) return;
+
+        // Create contract instance
+        contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+        // Update UI
+        showStatus('walletAddress', `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`, 'success');
+        showStatus('networkInfo', 'Connected to Polygon Amoy Testnet', 'success');
+
+        // Enable buttons
+        document.getElementById('payButton').disabled = false;
+        document.getElementById('withdrawAll').disabled = false;
+        document.getElementById('refreshBalance').disabled = false;
+
+        // Load initial balance
+        await refreshContractBalance();
+
+      } catch (error) {
+        console.error('Connection error:', error);
+        showStatus('walletAddress', `Connection failed: ${error.message}`, 'error');
+      }
+    };
+
+    // Refresh Contract Balance
+    document.getElementById("refreshBalance").onclick = refreshContractBalance;
+
+    async function refreshContractBalance() {
+      if (!provider) {
+        showStatus('contractBalance', 'Please connect wallet first');
         return;
       }
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      signer = provider.getSigner();
-      const addr = await signer.getAddress();
-      document.getElementById("walletAddress").innerText = "Connected: " + addr;
 
-      contract = new ethers.Contract(contractAddress, contractABI, signer);
-    };
-
-    // ✅ Refresh Balance
-    document.getElementById("refreshBalance").onclick = async () => {
-      if (!contract) return alert("Connect wallet first.");
-      const balance = await provider.getBalance(contractAddress);
-      document.getElementById("contractBalance").innerText = ethers.utils.formatEther(balance);
-    };
-
-    // ✅ Send Payment
-    document.getElementById("payButton").onclick = async () => {
-      if (!signer) return alert("Connect wallet first.");
-      const amount = document.getElementById("payAmount").value;
-      if (!amount || isNaN(amount)) return alert("Enter a valid number.");
       try {
+        const balance = await provider.getBalance(contractAddress);
+        const balanceInEth = ethers.utils.formatEther(balance);
+        document.getElementById("contractBalance").textContent = balanceInEth;
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+        showStatus('contractBalance', 'Error loading balance');
+      }
+    }
+
+    // Send Payment
+    document.getElementById("payButton").onclick = async () => {
+      if (!signer || !contract) {
+        showStatus('paymentStatus', 'Please connect wallet first', 'error');
+        return;
+      }
+
+      const amount = document.getElementById("payAmount").value;
+      if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+        showStatus('paymentStatus', 'Please enter a valid amount greater than 0', 'error');
+        return;
+      }
+
+      try {
+        showStatus('paymentStatus', 'Sending payment...', 'info');
+        
+        // Convert amount to Wei
+        const amountInWei = ethers.utils.parseEther(amount);
+        
+        // Send transaction
         const tx = await signer.sendTransaction({
           to: contractAddress,
-          value: ethers.utils.parseEther(amount)
+          value: amountInWei
         });
-        await tx.wait();
-        alert("Payment sent!");
-      } catch (err) {
-        console.error(err);
-        alert("Payment failed: " + err.message);
+
+        showStatus('paymentStatus', `Transaction sent! Hash: ${tx.hash}`, 'info');
+        showTransactionStatus('Waiting for transaction confirmation...', 'info');
+
+        // Wait for confirmation
+        const receipt = await tx.wait();
+        
+        showStatus('paymentStatus', 'Payment successful!', 'success');
+        showTransactionStatus(`Transaction confirmed! Block: ${receipt.blockNumber}`, 'success');
+        
+        // Refresh balance
+        await refreshContractBalance();
+        
+        // Clear input
+        document.getElementById("payAmount").value = '';
+
+      } catch (error) {
+        console.error('Payment error:', error);
+        showStatus('paymentStatus', `Payment failed: ${error.message}`, 'error');
+        showTransactionStatus(`Error: ${error.message}`, 'error');
       }
     };
 
-    // ✅ Withdraw All (Owner only)
+    // Withdraw All (Owner only)
     document.getElementById("withdrawAll").onclick = async () => {
-      if (!contract) return alert("Connect wallet first.");
+      if (!contract) {
+        showStatus('withdrawStatus', 'Please connect wallet first', 'error');
+        return;
+      }
+
       try {
+        showStatus('withdrawStatus', 'Checking owner status...', 'info');
+        
+        // Check if current user is the owner
+        const owner = await contract.owner();
+        if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+          showStatus('withdrawStatus', 'Only the contract owner can withdraw funds', 'error');
+          return;
+        }
+
+        showStatus('withdrawStatus', 'Withdrawing all funds...', 'info');
+        showTransactionStatus('Processing withdrawal...', 'info');
+
+        // Execute withdrawal
         const tx = await contract.withdrawAll();
-        await tx.wait();
-        alert("Withdraw successful!");
-      } catch (err) {
-        console.error(err);
-        alert("Withdraw failed: " + err.message);
+        
+        showStatus('withdrawStatus', `Withdrawal transaction sent! Hash: ${tx.hash}`, 'info');
+
+        // Wait for confirmation
+        const receipt = await tx.wait();
+        
+        showStatus('withdrawStatus', 'Withdrawal successful!', 'success');
+        showTransactionStatus(`Withdrawal confirmed! Block: ${receipt.blockNumber}`, 'success');
+        
+        // Refresh balance
+        await refreshContractBalance();
+
+      } catch (error) {
+        console.error('Withdrawal error:', error);
+        showStatus('withdrawStatus', `Withdrawal failed: ${error.message}`, 'error');
+        showTransactionStatus(`Error: ${error.message}`, 'error');
       }
     };
+
+    // Listen for account changes
+    if (typeof window.ethereum !== "undefined") {
+      window.ethereum.on('accountsChanged', function (accounts) {
+        if (accounts.length === 0) {
+          showStatus('walletAddress', 'Wallet disconnected', 'error');
+          showStatus('networkInfo', 'Please connect to Polygon Amoy Testnet', 'info');
+          document.getElementById('payButton').disabled = true;
+          document.getElementById('withdrawAll').disabled = true;
+          document.getElementById('refreshBalance').disabled = true;
+        } else {
+          // Reconnect with new account
+          document.getElementById("connectButton").click();
+        }
+      });
+
+      window.ethereum.on('chainChanged', function (chainId) {
+        if (chainId !== polygonAmoyChainId) {
+          showStatus('networkInfo', 'Please switch to Polygon Amoy Testnet', 'error');
+        } else {
+          showStatus('networkInfo', 'Connected to Polygon Amoy Testnet', 'success');
+        }
+      });
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Disable buttons initially
+      document.getElementById('payButton').disabled = true;
+      document.getElementById('withdrawAll').disabled = true;
+      document.getElementById('refreshBalance').disabled = true;
+    });
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
