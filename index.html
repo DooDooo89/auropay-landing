@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Payment Processor (Polygon Amoy Testnet)</title>
-  <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js" type="application/javascript"></script>
+  <!-- ✅ Fixed ethers.js CDN link -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -116,6 +117,22 @@
   </div>
 
   <script>
+    // ✅ Wait for ethers to be available
+    function waitForEthers() {
+      return new Promise((resolve) => {
+        if (typeof ethers !== 'undefined') {
+          resolve();
+        } else {
+          const checkEthers = setInterval(() => {
+            if (typeof ethers !== 'undefined') {
+              clearInterval(checkEthers);
+              resolve();
+            }
+          }, 100);
+        }
+      });
+    }
+
     // Contract configuration
     const contractAddress = "0x4d8b6e01750ca97ed8316290d586f1ee632f9146";
     const polygonAmoyChainId = "0x13881"; // 80001 in hex
@@ -312,7 +329,7 @@
     }
 
     // Connect Wallet
-    document.getElementById("connectButton").onclick = async () => {
+    async function connectWallet() {
       if (!checkMetaMask()) return;
 
       try {
@@ -347,11 +364,9 @@
         console.error('Connection error:', error);
         showStatus('walletAddress', `Connection failed: ${error.message}`, 'error');
       }
-    };
+    }
 
     // Refresh Contract Balance
-    document.getElementById("refreshBalance").onclick = refreshContractBalance;
-
     async function refreshContractBalance() {
       if (!provider) {
         showStatus('contractBalance', 'Please connect wallet first');
@@ -368,8 +383,8 @@
       }
     }
 
-    // ✅ FIXED: Send Payment - Now calls contract.pay() function
-    document.getElementById("payButton").onclick = async () => {
+    // Send Payment
+    async function sendPayment() {
       if (!signer || !contract) {
         showStatus('paymentStatus', 'Please connect wallet first', 'error');
         return;
@@ -387,7 +402,7 @@
         // Convert amount to Wei
         const amountInWei = ethers.utils.parseEther(amount);
         
-        // ✅ CRITICAL FIX: Call contract's pay() function instead of raw transfer
+        // Call contract's pay() function
         const tx = await contract.pay({ value: amountInWei });
 
         showStatus('paymentStatus', `Transaction sent! Hash: ${tx.hash}`, 'info');
@@ -410,10 +425,10 @@
         showStatus('paymentStatus', `Payment failed: ${error.message}`, 'error');
         showTransactionStatus(`Error: ${error.message}`, 'error');
       }
-    };
+    }
 
     // Withdraw All (Owner only)
-    document.getElementById("withdrawAll").onclick = async () => {
+    async function withdrawAll() {
       if (!contract) {
         showStatus('withdrawStatus', 'Please connect wallet first', 'error');
         return;
@@ -451,39 +466,52 @@
         showStatus('withdrawStatus', `Withdrawal failed: ${error.message}`, 'error');
         showTransactionStatus(`Error: ${error.message}`, 'error');
       }
-    };
-
-    // Listen for account changes
-    if (typeof window.ethereum !== "undefined") {
-      window.ethereum.on('accountsChanged', function (accounts) {
-        if (accounts.length === 0) {
-          showStatus('walletAddress', 'Wallet disconnected', 'error');
-          showStatus('networkInfo', 'Please connect to Polygon Amoy Testnet', 'info');
-          document.getElementById('payButton').disabled = true;
-          document.getElementById('withdrawAll').disabled = true;
-          document.getElementById('refreshBalance').disabled = true;
-        } else {
-          // Reconnect with new account
-          document.getElementById("connectButton").click();
-        }
-      });
-
-      window.ethereum.on('chainChanged', function (chainId) {
-        if (chainId !== polygonAmoyChainId) {
-          showStatus('networkInfo', 'Please switch to Polygon Amoy Testnet', 'error');
-        } else {
-          showStatus('networkInfo', 'Connected to Polygon Amoy Testnet', 'success');
-        }
-      });
     }
 
-    // Initialize page
-    document.addEventListener('DOMContentLoaded', function() {
+    // ✅ Initialize everything after ethers is loaded
+    async function initializeApp() {
+      await waitForEthers();
+      
+      // Set up event listeners
+      document.getElementById("connectButton").onclick = connectWallet;
+      document.getElementById("refreshBalance").onclick = refreshContractBalance;
+      document.getElementById("payButton").onclick = sendPayment;
+      document.getElementById("withdrawAll").onclick = withdrawAll;
+
+      // Listen for account changes
+      if (typeof window.ethereum !== "undefined") {
+        window.ethereum.on('accountsChanged', function (accounts) {
+          if (accounts.length === 0) {
+            showStatus('walletAddress', 'Wallet disconnected', 'error');
+            showStatus('networkInfo', 'Please connect to Polygon Amoy Testnet', 'info');
+            document.getElementById('payButton').disabled = true;
+            document.getElementById('withdrawAll').disabled = true;
+            document.getElementById('refreshBalance').disabled = true;
+          } else {
+            // Reconnect with new account
+            connectWallet();
+          }
+        });
+
+        window.ethereum.on('chainChanged', function (chainId) {
+          if (chainId !== polygonAmoyChainId) {
+            showStatus('networkInfo', 'Please switch to Polygon Amoy Testnet', 'error');
+          } else {
+            showStatus('networkInfo', 'Connected to Polygon Amoy Testnet', 'success');
+          }
+        });
+      }
+
       // Disable buttons initially
       document.getElementById('payButton').disabled = true;
       document.getElementById('withdrawAll').disabled = true;
       document.getElementById('refreshBalance').disabled = true;
-    });
+
+      console.log('✅ App initialized successfully');
+    }
+
+    // Start the app when DOM is loaded
+    document.addEventListener('DOMContentLoaded', initializeApp);
   </script>
 </body>
 </html>
