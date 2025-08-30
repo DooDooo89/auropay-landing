@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <title>Payment Processor</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+  <!-- ✅ Correct ethers.js for browser -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body>
   <h2>Payment Processor (Polygon Amoy Testnet)</h2>
@@ -26,8 +27,8 @@
   <button id="withdrawAll">Withdraw All (Owner)</button>
 
   <script>
-    // ⚠️ Replace with your deployed contract address
-    const contractAddress = "0x4D8B6e01750Ca97ed8316290D586f1EE632F9146";
+    // ✅ Your deployed contract address
+    const contractAddress = "0x4D8B86e01758cA97ed8316290D586f11E632F946";
 
     // ✅ Full ABI from PaymentProcessor.sol
     const contractABI = [
@@ -39,18 +40,8 @@
       {
         "anonymous": false,
         "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "from",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          }
+          { "indexed": true, "internalType": "address", "name": "from", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
         ],
         "name": "PaymentReceived",
         "type": "event"
@@ -58,18 +49,8 @@
       {
         "anonymous": false,
         "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "to",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          }
+          { "indexed": true, "internalType": "address", "name": "to", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
         ],
         "name": "Withdrawal",
         "type": "event"
@@ -77,26 +58,14 @@
       {
         "inputs": [],
         "name": "getBalance",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
         "stateMutability": "view",
         "type": "function"
       },
       {
         "inputs": [],
         "name": "owner",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
+        "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
         "stateMutability": "view",
         "type": "function"
       },
@@ -108,13 +77,7 @@
         "type": "function"
       },
       {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          }
-        ],
+        "inputs": [{ "internalType": "uint256", "name": "amount", "type": "uint256" }],
         "name": "withdraw",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -141,8 +104,9 @@
         document.getElementById("account").innerText = "Connected: " + address;
 
         contract = new ethers.Contract(contractAddress, contractABI, signer);
+        console.log("✅ Wallet connected:", address);
       } else {
-        alert("MetaMask not found");
+        alert("MetaMask not found. Please install it.");
       }
     };
 
@@ -157,9 +121,10 @@
     document.getElementById("pay").onclick = async () => {
       if (!contract) return alert("Connect wallet first");
       const amount = document.getElementById("payAmount").value;
+      if (!amount || isNaN(amount)) return alert("Enter a valid number");
       const tx = await contract.pay({ value: ethers.utils.parseEther(amount) });
       await tx.wait();
-      alert("Payment successful!");
+      alert("✅ Payment successful!");
     };
 
     // Withdraw all
@@ -167,10 +132,11 @@
       if (!contract) return alert("Connect wallet first");
       const tx = await contract.withdrawAll();
       await tx.wait();
-      alert("Withdrawal complete!");
+      alert("✅ Withdrawal complete!");
     };
   </script>
 </body>
 </html>
+
 
 
