@@ -1,19 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Payment Processor</title>
-  <!-- ✅ Correct ethers.js version -->
+  <meta charset="utf-8" />
+  <title>Payment Processor (Polygon Amoy Testnet)</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body>
   <h2>Payment Processor (Polygon Amoy Testnet)</h2>
 
-  <!-- Connect Wallet -->
+  <!-- Connect -->
   <button id="connect">Connect Wallet</button>
   <p id="account">Not connected</p>
-
-  <!-- Balance -->
   <p>Contract Balance: <span id="balance">0</span> POL</p>
   <button id="refresh">Refresh Balance</button>
 
@@ -27,138 +24,117 @@
   <button id="withdrawAll">Withdraw All (Owner)</button>
 
   <script>
-    window.onload = () => {
-      // ✅ Correct checksummed contract address
-      const contractAddress = "0x4d8B86E01758cA97Ed8316290D586f11E632f946";
+    // ✅ Use your deployed contract (checksummed address)
+    const contractAddress = "0x4d8B6E01750cA97Ed8316290D586f11E632F946";
 
-      // ✅ Full ABI
-      const contractABI = [
-        { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
-        {
-          "anonymous": false,
-          "inputs": [
-            { "indexed": true, "internalType": "address", "name": "from", "type": "address" },
-            { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
-          ],
-          "name": "PaymentReceived",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            { "indexed": true, "internalType": "address", "name": "to", "type": "address" },
-            { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
-          ],
-          "name": "Withdrawal",
-          "type": "event"
-        },
-        {
-          "inputs": [],
-          "name": "getBalance",
-          "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "owner",
-          "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "pay",
-          "outputs": [],
-          "stateMutability": "payable",
-          "type": "function"
-        },
-        {
-          "inputs": [{ "internalType": "uint256", "name": "amount", "type": "uint256" }],
-          "name": "withdraw",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "withdrawAll",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        }
-      ];
+    // ✅ ABI
+    const contractABI = [
+      {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {"indexed": true,"internalType": "address","name": "from","type": "address"},
+          {"indexed": false,"internalType": "uint256","name": "amount","type": "uint256"}
+        ],
+        "name": "PaymentReceived",
+        "type": "event"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [{"internalType": "address","name": "","type": "address"}],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "pay",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "withdrawAll",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "getBalance",
+        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
 
-      let provider, signer, contract;
+    let provider, signer, contract;
 
-      // Connect wallet
-      document.getElementById("connect").onclick = async () => {
-        if (window.ethereum) {
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          await provider.send("eth_requestAccounts", []);
-          signer = provider.getSigner();
-          const address = await signer.getAddress();
-          document.getElementById("account").innerText = "Connected: " + address;
+    // Connect Wallet
+    document.getElementById("connect").onclick = async () => {
+      if (typeof window.ethereum === "undefined") {
+        alert("MetaMask not found!");
+        return;
+      }
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      const address = await signer.getAddress();
+      document.getElementById("account").innerText = "Connected: " + address;
 
-          contract = new ethers.Contract(contractAddress, contractABI, signer);
-          console.log("✅ Wallet connected:", address);
-        } else {
-          alert("MetaMask not found. Please install it.");
-        }
-      };
+      contract = new ethers.Contract(contractAddress, contractABI, signer);
+    };
 
-      // Refresh balance
-      document.getElementById("refresh").onclick = async () => {
-        if (!contract) return alert("Connect wallet first");
-        const balance = await contract.getBalance();
-        document.getElementById("balance").innerText = ethers.utils.formatEther(balance);
-        console.log("📊 Contract balance:", balance.toString());
-      };
+    // Refresh Balance
+    document.getElementById("refresh").onclick = async () => {
+      if (!contract) return alert("Connect wallet first");
+      const bal = await contract.getBalance();
+      document.getElementById("balance").innerText = ethers.utils.formatEther(bal);
+    };
 
-      // Pay
-      document.getElementById("pay").onclick = async () => {
-        if (!contract) return alert("Connect wallet first");
+    // Pay
+    document.getElementById("pay").onclick = async () => {
+      if (!contract) return alert("Connect wallet first");
 
-        const amount = document.getElementById("payAmount").value;
-        console.log("💰 Pay clicked, raw amount:", amount);
+      const amount = document.getElementById("payAmount").value.trim();
+      console.log("💰 Raw input:", amount);
 
-        if (!amount || isNaN(amount)) {
-          alert("Enter a valid number");
-          return;
-        }
+      try {
+        const parsed = ethers.utils.parseEther(amount);
+        console.log("🔗 Parsed to wei:", parsed.toString());
 
-        try {
-          console.log("🔗 Sending payment:", amount, "POL");
-          const tx = await contract.pay({
-            value: ethers.utils.parseEther(amount.toString())
-          });
-          console.log("📤 Transaction sent:", tx.hash);
+        const tx = await contract.pay({ value: parsed });
+        console.log("📤 Sent tx:", tx.hash);
 
-          await tx.wait();
-          console.log("✅ Transaction confirmed:", tx.hash);
-          alert("✅ Payment successful!");
-        } catch (err) {
-          console.error("❌ Payment failed:", err);
-          alert("Payment failed: " + (err.message || err));
-        }
-      };
+        await tx.wait();
+        alert("✅ Payment confirmed!");
+      } catch (err) {
+        console.error("❌ Payment failed:", err);
+        alert("Payment failed: " + (err.message || err));
+      }
+    };
 
-      // Withdraw all
-      document.getElementById("withdrawAll").onclick = async () => {
-        if (!contract) return alert("Connect wallet first");
-        try {
-          const tx = await contract.withdrawAll();
-          console.log("📤 Withdraw tx sent:", tx.hash);
-          await tx.wait();
-          console.log("✅ Withdraw confirmed:", tx.hash);
-          alert("✅ Withdrawal complete!");
-        } catch (err) {
-          console.error("❌ Withdraw failed:", err);
-          alert("Withdraw failed: " + (err.message || err));
-        }
-      };
+    // Withdraw All
+    document.getElementById("withdrawAll").onclick = async () => {
+      if (!contract) return alert("Connect wallet first");
+
+      try {
+        const tx = await contract.withdrawAll();
+        console.log("📤 Withdraw tx:", tx.hash);
+        await tx.wait();
+        alert("✅ Withdraw successful!");
+      } catch (err) {
+        console.error("❌ Withdraw failed:", err);
+        alert("Withdraw failed: " + (err.message || err));
+      }
     };
   </script>
 </body>
 </html>
+
 
