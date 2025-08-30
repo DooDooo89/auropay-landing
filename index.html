@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Payment Processor</title>
-  <!-- ✅ Correct ethers.js for browser -->
+  <!-- ✅ Correct ethers.js version for browser -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body>
@@ -30,7 +30,7 @@
     // ✅ Your deployed contract address
     const contractAddress = "0x4D8B86e01758cA97ed8316290D586f11E632F946";
 
-    // ✅ Full ABI from PaymentProcessor.sol
+    // ✅ Full ABI
     const contractABI = [
       {
         "inputs": [],
@@ -115,28 +115,54 @@
       if (!contract) return alert("Connect wallet first");
       const balance = await contract.getBalance();
       document.getElementById("balance").innerText = ethers.utils.formatEther(balance);
+      console.log("📊 Contract balance:", balance.toString());
     };
 
-    // Pay
+    // Pay (with debug logging)
     document.getElementById("pay").onclick = async () => {
       if (!contract) return alert("Connect wallet first");
+
       const amount = document.getElementById("payAmount").value;
-      if (!amount || isNaN(amount)) return alert("Enter a valid number");
-      const tx = await contract.pay({ value: ethers.utils.parseEther(amount) });
-      await tx.wait();
-      alert("✅ Payment successful!");
+      console.log("💰 Pay button clicked, amount entered:", amount);
+
+      if (!amount || isNaN(amount)) {
+        alert("Enter a valid number");
+        return;
+      }
+
+      try {
+        const tx = await contract.pay({
+          value: ethers.utils.parseEther(amount.toString())
+        });
+        console.log("📤 Transaction sent:", tx.hash);
+
+        await tx.wait();
+        console.log("✅ Transaction confirmed:", tx.hash);
+        alert("✅ Payment successful!");
+      } catch (err) {
+        console.error("❌ Payment failed:", err);
+        alert("Payment failed: " + (err.message || err));
+      }
     };
 
     // Withdraw all
     document.getElementById("withdrawAll").onclick = async () => {
       if (!contract) return alert("Connect wallet first");
-      const tx = await contract.withdrawAll();
-      await tx.wait();
-      alert("✅ Withdrawal complete!");
+      try {
+        const tx = await contract.withdrawAll();
+        console.log("📤 Withdraw tx sent:", tx.hash);
+        await tx.wait();
+        console.log("✅ Withdraw confirmed:", tx.hash);
+        alert("✅ Withdrawal complete!");
+      } catch (err) {
+        console.error("❌ Withdraw failed:", err);
+        alert("Withdraw failed: " + (err.message || err));
+      }
     };
   </script>
 </body>
 </html>
+
 
 
 
