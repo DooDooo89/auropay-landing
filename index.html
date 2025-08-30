@@ -1,38 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AuroPay – Borderless Payments</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#0d0d0d; color:white; text-align:center; }
-    header { padding:60px 20px; }
-    h1 { font-size:3em; color:#FFD700; }
-    p { font-size:1.2em; margin:20px auto; max-width:600px; }
-    .btn { background:#FFD700; color:black; padding:12px 25px; border-radius:8px; text-decoration:none; font-weight:bold; }
-    .section { padding:60px 20px; }
-    footer { padding:20px; font-size:0.9em; color:gray; }
-  </style>
+  <meta charset="utf-8">
+  <title>Payment Processor</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>AuroPay</h1>
-    <p>Borderless, Censorship-Free Payments for the Web3 Era.</p>
-    <a href="https://forms.gle/" class="btn" target="_blank">Sign up for Beta</a>
-  </header>
+  <h2>Payment Processor (Polygon Amoy Testnet)</h2>
 
-  <div class="section">
-    <h2>How it Works</h2>
-    <p>1. Connect Wallet → 2. Approve Payment → 3. Merchant receives instantly.</p>
-  </div>
+  <!-- Connect Wallet -->
+  <button id="connect">Connect Wallet</button>
+  <p id="account">Not connected</p>
 
-  <div class="section" style="background:#1a1a1a;">
-    <h2>Why AuroPay?</h2>
-    <p>✔ Low fees (0.5%)<br>✔ No account freezes<br>✔ Accept payments globally</p>
-  </div>
+  <!-- Balance -->
+  <p>Contract Balance: <span id="balance">0</span> POL</p>
+  <button id="refresh">Refresh Balance</button>
 
-  <footer>
-    © 2025 AuroPay (Prototype). All rights reserved.
-  </footer>
+  <!-- Pay -->
+  <h3>Send Payment</h3>
+  <input type="text" id="payAmount" placeholder="Amount in POL">
+  <button id="pay">Pay</button>
+
+  <!-- Withdraw -->
+  <h3>Withdraw</h3>
+  <button id="withdrawAll">Withdraw All (Owner)</button>
+
+  <script>
+    // ⚠️ Replace with your deployed contract address
+    const contractAddress = "YOUR_CONTRACT_ADDRESS_HERE";
+
+    // ⚠️ Replace with your contract ABI (from Remix > Compilation Details > ABI)
+    const contractABI = [
+      "function pay() external payable",
+      "function withdrawAll() external",
+      "function getBalance() external view returns (uint256)"
+    ];
+
+    let provider, signer, contract;
+
+    // Connect wallet
+    document.getElementById("connect").onclick = async () => {
+      if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const address = await signer.getAddress();
+        document.getElementById("account").innerText = "Connected: " + address;
+
+        contract = new ethers.Contract(contractAddress, contractABI, signer);
+      } else {
+        alert("MetaMask not found");
+      }
+    };
+
+    // Refresh balance
+    document.getElementById("refresh").onclick = async () => {
+      if (!contract) return alert("Connect wallet first");
+      const balance = await contract.getBalance();
+      document.getElementById("balance").innerText = ethers.utils.formatEther(balance);
+    };
+
+    // Pay function
+    document.getElementById("pay").onclick = async () => {
+      if (!contract) return alert("Connect wallet first");
+      const amount = document.getElementById("payAmount").value;
+      const tx = await contract.pay({ value: ethers.utils.parseEther(amount) });
+      await tx.wait();
+      alert("Payment successful!");
+    };
+
+    // Withdraw All
+    document.getElementById("withdrawAll").onclick = async () => {
+      if (!contract) return alert("Connect wallet first");
+      const tx = await contract.withdrawAll();
+      await tx.wait();
+      alert("Withdrawal complete!");
+    };
+  </script>
 </body>
 </html>
+
