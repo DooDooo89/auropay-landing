@@ -8,28 +8,28 @@
 <body>
   <h2>Payment Processor (Polygon Amoy Testnet)</h2>
 
-  <!-- Connect -->
-  <button id="connect">Connect Wallet</button>
-  <p id="status">Not connected</p>
+  <!-- Connect Wallet -->
+  <button id="connectButton">Connect Wallet</button>
+  <p id="walletAddress">Not connected</p>
 
-  <!-- Balance -->
-  <p>Contract Balance: <span id="balance">0</span> POL</p>
-  <button id="refresh">Refresh Balance</button>
+  <!-- Contract Balance -->
+  <p>Contract Balance: <span id="contractBalance">0</span> POL</p>
+  <button id="refreshBalance">Refresh Balance</button>
 
-  <!-- Pay -->
+  <!-- Send Payment -->
   <h3>Send Payment</h3>
   <input type="text" id="payAmount" placeholder="Amount in POL">
-  <button id="pay">Pay</button>
+  <button id="payButton">Pay</button>
 
   <!-- Withdraw -->
   <h3>Withdraw</h3>
   <button id="withdrawAll">Withdraw All (Owner)</button>
 
   <script>
-    // ✅ Replace with YOUR contract address (checksummed version!)
-    const contractAddress = "0x4d8B6E01750cA97Ed8316290D586f11E632F9146";
+    // ✅ Your deployed contract address (replace if redeployed)
+    const contractAddress = "0x4d8b6e01750ca97ed8316290d586f1ee632f9146";
 
-    // ✅ ABI (from Remix)
+    // ✅ Full ABI from PaymentProcessor.sol
     const contractABI = [
       {
         "inputs": [],
@@ -39,16 +39,25 @@
       {
         "anonymous": false,
         "inputs": [
-          {"indexed": true, "internalType": "address", "name": "from", "type": "address"},
-          {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+          { "indexed": true, "internalType": "address", "name": "from", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
         ],
         "name": "PaymentReceived",
         "type": "event"
       },
       {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "address", "name": "to", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+        ],
+        "name": "WithdrawAll",
+        "type": "event"
+      },
+      {
         "inputs": [],
         "name": "owner",
-        "outputs": [{"internalType": "address","name":"","type":"address"}],
+        "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
         "stateMutability": "view",
         "type": "function"
       },
@@ -61,17 +70,24 @@
       },
       {
         "inputs": [],
-        "name": "getBalance",
-        "outputs": [{"internalType":"uint256","name":"","type":"uint256"}],
-        "stateMutability": "view",
+        "name": "pay",
+        "outputs": [],
+        "stateMutability": "payable",
         "type": "function"
+      },
+      {
+        "stateMutability": "payable",
+        "type": "receive"
       }
     ];
 
-    let provider, signer, contract;
+    let provider;
+    let signer;
+    let contract;
 
-    async function connectWallet() {
-      if (!window.ethereum) {
+    // ✅ Connect Wallet
+    document.getElementById("connectButton").onclick = async () => {
+      if (typeof window.ethereum === "undefined") {
         alert("MetaMask not found. Please install it.");
         return;
       }
@@ -79,59 +95,52 @@
       await provider.send("eth_requestAccounts", []);
       signer = provider.getSigner();
       const addr = await signer.getAddress();
-      document.getElementById("status").innerText = `Connected: ${addr}`;
+      document.getElementById("walletAddress").innerText = "Connected: " + addr;
+
       contract = new ethers.Contract(contractAddress, contractABI, signer);
-    }
+    };
 
-    async function refreshBalance() {
-      if (!contract) return alert("Connect wallet first");
-      try {
-        const balance = await contract.getBalance();
-        document.getElementById("balance").innerText = ethers.utils.formatEther(balance);
-      } catch (err) {
-        console.error(err);
-        alert("Error fetching balance");
-      }
-    }
+    // ✅ Refresh Balance
+    document.getElementById("refreshBalance").onclick = async () => {
+      if (!contract) return alert("Connect wallet first.");
+      const balance = await provider.getBalance(contractAddress);
+      document.getElementById("contractBalance").innerText = ethers.utils.formatEther(balance);
+    };
 
-    async function pay() {
-      if (!signer) return alert("Connect wallet first");
+    // ✅ Send Payment
+    document.getElementById("payButton").onclick = async () => {
+      if (!signer) return alert("Connect wallet first.");
       const amount = document.getElementById("payAmount").value;
-      if (!amount || isNaN(amount)) return alert("Enter valid amount");
+      if (!amount || isNaN(amount)) return alert("Enter a valid number.");
       try {
         const tx = await signer.sendTransaction({
           to: contractAddress,
           value: ethers.utils.parseEther(amount)
         });
         await tx.wait();
-        alert("Payment successful!");
-        refreshBalance();
+        alert("Payment sent!");
       } catch (err) {
         console.error(err);
         alert("Payment failed: " + err.message);
       }
-    }
+    };
 
-    async function withdrawAll() {
-      if (!contract) return alert("Connect wallet first");
+    // ✅ Withdraw All (Owner only)
+    document.getElementById("withdrawAll").onclick = async () => {
+      if (!contract) return alert("Connect wallet first.");
       try {
         const tx = await contract.withdrawAll();
         await tx.wait();
         alert("Withdraw successful!");
-        refreshBalance();
       } catch (err) {
         console.error(err);
         alert("Withdraw failed: " + err.message);
       }
-    }
-
-    document.getElementById("connect").onclick = connectWallet;
-    document.getElementById("refresh").onclick = refreshBalance;
-    document.getElementById("pay").onclick = pay;
-    document.getElementById("withdrawAll").onclick = withdrawAll;
+    };
   </script>
 </body>
 </html>
+
 
 
 
