@@ -118,32 +118,37 @@
       console.log("📊 Contract balance:", balance.toString());
     };
 
-    // Pay (with debug logging)
-    document.getElementById("pay").onclick = async () => {
-      if (!contract) return alert("Connect wallet first");
+    // Pay (extra debug)
+document.getElementById("pay").onclick = async () => {
+  if (!contract) {
+    alert("⚠️ Connect wallet first");
+    return;
+  }
 
-      const amount = document.getElementById("payAmount").value;
-      console.log("💰 Pay button clicked, amount entered:", amount);
+  const amount = document.getElementById("payAmount").value;
+  console.log("💰 Pay clicked, raw amount entered:", amount);
 
-      if (!amount || isNaN(amount)) {
-        alert("Enter a valid number");
-        return;
-      }
+  if (!amount || isNaN(amount)) {
+    alert("⚠️ Enter a valid number");
+    return;
+  }
 
-      try {
-        const tx = await contract.pay({
-          value: ethers.utils.parseEther(amount.toString())
-        });
-        console.log("📤 Transaction sent:", tx.hash);
+  try {
+    console.log("🔗 Calling contract.pay() with value:", amount, "POL");
+    const tx = await contract.pay({
+      value: ethers.utils.parseEther(amount.toString())
+    });
+    console.log("📤 Transaction sent:", tx.hash);
 
-        await tx.wait();
-        console.log("✅ Transaction confirmed:", tx.hash);
-        alert("✅ Payment successful!");
-      } catch (err) {
-        console.error("❌ Payment failed:", err);
-        alert("Payment failed: " + (err.message || err));
-      }
-    };
+    await tx.wait();
+    console.log("✅ Transaction confirmed:", tx.hash);
+    alert("✅ Payment successful!");
+  } catch (err) {
+    console.error("❌ Error when sending payment:", err);
+    alert("❌ Payment failed: " + (err.message || err));
+  }
+};
+
 
     // Withdraw all
     document.getElementById("withdrawAll").onclick = async () => {
